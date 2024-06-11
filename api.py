@@ -1,4 +1,6 @@
+import datetime
 import io
+from typing import Optional
 
 from fastapi import Body, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +26,13 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+def __last_day_of_month(start: datetime.date):
+    # The day 28 exists in every month. 4 days later, it's always next month.
+    # Subtracting the number of the current day brings us back one month.
+    next_month = start.replace(day=28) + datetime.timedelta(days=4)
+    return next_month - datetime.timedelta(days=next_month.day)
 
 
 async def get_user_from_request(request: Request) -> db.User:
@@ -74,11 +83,42 @@ async def get_bills(request: Request):
     return data
 
 
-@app.get("/api/charts/daily", dependencies=[Depends(auth.authenticate)])
-async def get_daily_data(request: Request):
+@app.get("/api/charts/daily/", dependencies=[Depends(auth.authenticate)])
+async def get_daily_data(
+    request: Request, month: Optional[int] = None, year: Optional[int] = None
+):
     user = await get_user_from_request(request)
     assert user is not None
-    data = db.retrieve_daily_data(user)
+    if month is None or year is None:
+        stop = datetime.datetime.now().date()
+        start = stop - datetime.timedelta(days=30)
+    else:
+        try:
+            start = datetime.date(year, month, 1)
+            stop = __last_day_of_month(start)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Invalid year or month provided."
+            )
+    dt = datetime.timedelta(days=1)
+    data = db.retrieve_sum_expenses(user, start, stop, dt)
+    return data
+
+
+@app.get("/api/charts/monthly", dependencies=[Depends(auth.authenticate)])
+async def get_monthly_data(request: Request, year: Optional[int] = None):
+    user = await get_user_from_request(request)
+    assert user is not None
+    if year is None:
+        stop = datetime.datetime.now()
+        start = stop - datetime.timedelta(days=365)
+    else:
+        assert year >= 0
+        assert year <= 9999
+        start = datetime.date(year, 1, 1)
+        stop = datetime.date(year, 12, 31)
+    dt = datetime.timedelta(days=30)
+    data = db.retrieve_sum_expenses(user, start, stop, dt)
     return data
 
 
@@ -86,7 +126,10 @@ async def get_daily_data(request: Request):
 async def get_yearly_data(request: Request):
     user = await get_user_from_request(request)
     assert user is not None
-    data = db.retrieve_yearly_data(user)
+    stop = datetime.date(datetime.datetime.today().year, 1, 1)
+    start = stop - datetime.timedelta(days=5 * 365)
+    dt = datetime.timedelta(months=1)
+    data = db.retrieve_sum_expenses(user, start, stop, dt)
     return data
 
 
