@@ -1,20 +1,20 @@
 name: GitHub Actions Pipeline 🚀
-run-name: ${{ github.actor }} is deploying rewe-app-be 🚀
+run-name: ${{ github.actor }} is deploying trace-be 🚀
 on: [push]
 jobs:
-  Deploy-Rewe-App-Be:
+  Deploy-trace-Be:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Build image
         working-directory: ./
         run: |
-          echo "Building rewe-app-be image... 🏗"
+          echo "Building trace-be image... 🏗"
           echo "JWT_SECRET=$JWT_SECRET" >> .env
-          docker build -t rewe-app-be-image .
+          docker build -t trace-be-image .
       - name: Deploy image
-        working-directory: ./rewe-app-be
+        working-directory: ./
         run: |
-          echo "Deploying rewe-app-be image 🚀"
-          docker stop rewe-app-be || true && docker rm rewe-app-be || true
-          docker run -d --net rewe-net --ip 172.41.0.20  -v rewe-be-data:/app/data/ --name rewe-app-be rewe-app-be-image -p 8080:80
+          echo "Deploying trace-be image 🚀"
+          docker stop trace-be || true && docker rm trace-be || true
+          docker run -d --net rewe-net --ip 172.41.0.20 -p 8080:80 -v rewe-be-data:/app/data/ --name trace-be trace-be-image
