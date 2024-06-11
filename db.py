@@ -120,38 +120,28 @@ def get_bills(user: User):
     return data
 
 
-def retrieve_daily_data(user: User):
-    start = datetime.datetime.now() - datetime.timedelta(days=30)
-    with sqlalchemy.orm.Session(engine) as session:
-        query = (
-            session.query(Bill)
-            .filter(Bill.datetime >= start)
-            .filter(Bill.user_id == user.id)
-            .order_by(Bill.datetime)
-        )
-        bills = query.all()
-        values = list()
-        for dt in range(30):
-            date = (start + datetime.timedelta(days=dt)).date()
-            total = sum([b.value for b in bills if b.datetime.date() == date])
-            values.append(dict(day=str(date), value=total))
-    return values
-
-
-def retrieve_yearly_data(user: User):
-    start = datetime.datetime.now() - datetime.timedelta(days=5 * 365)
-    with sqlalchemy.orm.Session(engine) as session:
-        query = (
-            session.query(Bill)
-            .filter(Bill.datetime >= start)
-            .filter(Bill.user_id == user.id)
-            .order_by(Bill.datetime)
-        )
-        bills = query.all()
-        data = list()
-        for dt in range(5 + 1):
-            year = (start + datetime.timedelta(days=dt * 365)).year
-            total = sum([b.value for b in bills if b.datetime.year == year])
-            data.append(dict(year=year, value=total))
-        session.close()
+def retrieve_sum_expenses(
+    user: User,
+    start: datetime.date,
+    stop: datetime.date,
+    dt: datetime.timedelta,
+):
+    assert stop > start
+    assert (start + 1000 * dt) > stop
+    data = []
+    x = start
+    while x <= stop:
+        with sqlalchemy.orm.Session(engine) as session:
+            value = (
+                session.query(sqlalchemy.func.sum(Bill.value))
+                .filter(Bill.datetime >= x)
+                .filter(Bill.datetime < x + dt)
+                .filter(Bill.user_id == user.id)
+                .order_by(Bill.datetime)
+                .scalar()
+            )
+            value = 0 if value is None else value
+            data.append(dict(x=x, y=value))
+            session.close()
+        x += dt
     return data

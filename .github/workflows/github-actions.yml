@@ -1,53 +1,20 @@
 name: GitHub Actions Pipeline 🚀
-run-name: ${{ github.actor }} is deploying rewe-app 🚀
+run-name: ${{ github.actor }} is deploying trace-be 🚀
 on: [push]
 jobs:
-  Deploy-Rewe-App-Fe:
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Cache node modules
-        uses: actions/cache@v3
-        with:
-          path: rewe-app-fe/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('rewe-app-fe/package-lock.json') }}
-      - name: Lint & Test
-        working-directory: ./rewe-app-fe
-        run: |
-          echo "Installing rewe-app-fe dependencies ... 📦"
-          npm install
-          echo "Testing rewe-app-fe ... 🧪"
-          npm run test
-          echo "Linting rewe-app-fe ... 🧹"
-          npm run lint
-      - name: Build image
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }} # TODO: make this dynamic
-        working-directory: ./rewe-app-fe
-        run: |
-          echo "Building rewe-app-fe image... 🏗"
-          echo "REACT_APP_API_BASE_URL=$API_BASE_URL" >> .env
-          docker build -t rewe-app-fe-image .
-      - name: Deploy image
-        working-directory: ./rewe-app-fe
-        run: |
-          echo "Deploying rewe-app-fe image 🚀"
-          ls -al
-          docker stop rewe-app-fe || true && docker rm rewe-app-fe || true
-          docker run -d --net rewe-net --ip 172.41.0.21 --name rewe-app-fe rewe-app-fe-image
-  Deploy-Rewe-App-Be:
+  Deploy-trace-Be:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        working-directory: ./rewe-app-be
+        working-directory: ./
         run: |
-          echo "Building rewe-app-be image... 🏗"
+          echo "Building trace-be image... 🏗"
           echo "JWT_SECRET=$JWT_SECRET" >> .env
-          docker build -t rewe-app-be-image .
+          docker build -t trace-be-image .
       - name: Deploy image
-        working-directory: ./rewe-app-be
+        working-directory: ./
         run: |
-          echo "Deploying rewe-app-be image 🚀"
-          docker stop rewe-app-be || true && docker rm rewe-app-be || true
-          docker run -d --net rewe-net --ip 172.41.0.20  -v rewe-be-data:/app/data/ --name rewe-app-be rewe-app-be-image
+          echo "Deploying trace-be image 🚀"
+          docker stop trace-be || true && docker rm trace-be || true
+          docker run -d --net rewe-net --ip 172.41.0.20 -p 8080:80 -v rewe-be-data:/app/data/ --name trace-be trace-be-image
