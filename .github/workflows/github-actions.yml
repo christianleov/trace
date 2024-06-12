@@ -4,6 +4,7 @@ on: [push]
 jobs:
   Deploy-trace-Be:
     runs-on: self-hosted
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - name: Build image
