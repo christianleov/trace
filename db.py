@@ -127,11 +127,10 @@ def retrieve_sum_expenses(
     dt: datetime.timedelta,
 ):
     assert stop > start
-    assert (stop - start) / dt < 1000
-    i = 0
+    assert (start + 1000 * dt) > stop
     data = []
-    while True:
-        x = start + i * dt
+    x = start
+    while x <= stop:
         with sqlalchemy.orm.Session(engine) as session:
             value = (
                 session.query(sqlalchemy.func.sum(Bill.value))
@@ -144,7 +143,5 @@ def retrieve_sum_expenses(
             value = 0 if value is None else value
             data.append(dict(x=x, y=value))
             session.close()
-        if x >= stop:
-            break
-        i += 1
+        x += dt
     return data

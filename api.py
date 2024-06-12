@@ -2,6 +2,7 @@ import datetime
 import io
 from typing import Optional
 
+import dateutil
 from fastapi import Body, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -83,7 +84,7 @@ async def get_bills(request: Request):
     return data
 
 
-@app.get("/api/charts/daily/", dependencies=[Depends(auth.authenticate)])
+@app.get("/api/charts/daily", dependencies=[Depends(auth.authenticate)])
 async def get_daily_data(
     request: Request, month: Optional[int] = None, year: Optional[int] = None
 ):
@@ -110,14 +111,13 @@ async def get_monthly_data(request: Request, year: Optional[int] = None):
     user = await get_user_from_request(request)
     assert user is not None
     if year is None:
-        stop = datetime.datetime.now()
+        stop = datetime.date.today()
         start = stop - datetime.timedelta(days=365)
     else:
-        assert year >= 0
-        assert year <= 9999
+        assert 9999 >= year >= 0
         start = datetime.date(year, 1, 1)
         stop = datetime.date(year, 12, 31)
-    dt = datetime.timedelta(days=30)
+    dt = dateutil.relativedelta.relativedelta(months=1)
     data = db.retrieve_sum_expenses(user, start, stop, dt)
     return data
 
@@ -127,8 +127,8 @@ async def get_yearly_data(request: Request):
     user = await get_user_from_request(request)
     assert user is not None
     stop = datetime.date(datetime.datetime.today().year, 1, 1)
-    start = stop - datetime.timedelta(days=5 * 365)
-    dt = datetime.timedelta(months=1)
+    dt = dateutil.relativedelta.relativedelta(years=1)
+    start = stop - 4 * dt
     data = db.retrieve_sum_expenses(user, start, stop, dt)
     return data
 
