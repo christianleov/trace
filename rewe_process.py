@@ -1,3 +1,4 @@
+import datetime
 import math
 import re
 import typing
@@ -60,12 +61,18 @@ def parse_rewe_ebon(ebon: typing.IO, user_id: int) -> int:
     text = extract_text(ebon)
     expenses, total = __parse_rewe_ebon_text(text)
     bill_datetime = expenses[0].datetime
-    # We refresh ORM objects so that autoincremented values are accessible.
-    with Session(db.engine) as session:
-        query = session.query(db.Bill).filter(db.Bill.datetime == bill_datetime)
+
+    def find_bill(d: datetime.datetime) -> db.Bill | None:
+        query = session.query(db.Bill).filter(db.Bill.datetime == d)
         bill = query.first()
         if bill is not None:
             print(f"Bill already exists (id={bill.id})")
+            return bill
+
+    # We refresh ORM objects so that autoincremented values are accessible.
+    with Session(db.engine) as session:
+        bill = db.find_bill(bill_datetime)
+        if bill is not None:
             return bill.id
         bill = db.Bill(user_id=user_id, datetime=bill_datetime, value=total)
         session.add(bill)
