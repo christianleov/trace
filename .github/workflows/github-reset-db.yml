@@ -1,0 +1,14 @@
+name: Reset Database
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Reset-database:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reset database
+        run: |
+          docker exec trace-be python -c "import db; db.clean(); db.create_database()"
