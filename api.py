@@ -1,5 +1,4 @@
 import datetime
-import io
 from typing import Optional
 
 import dateutil
@@ -53,7 +52,7 @@ async def options_route():
 async def login(user_data: dict = Body(...)):
     user = db.find_user(user_data["username"], user_data["password"])
     if user is None:
-        raise HTTPException(status_code=404, detail="Not found (from FastAPI).")
+        raise HTTPException(status_code=401)
     token = auth.jwt_encode(user_data["username"])
     return dict(token=token)
 
@@ -67,19 +66,14 @@ async def register(user_data: dict = Body(...)):
     return JSONResponse(content=dict(token=token), status_code=201)
 
 
-@app.post("/api/db/clean", dependencies=[Depends(auth.authenticate)])
-async def clean_db(request: Request):
-    user = await get_user_from_request(request)
-    if user.name not in ["zzo", "jthies"]:
-        raise HTTPException(status_code=401)
-    db.clean()
-    db.create_database()
-
-
 @app.get("/api/bills", dependencies=[Depends(auth.authenticate)])
-async def get_bills(request: Request):
+async def get_bills(request: Request, file_hash: Optional[str] = None):
     user = await get_user_from_request(request)
     assert user is not None
+    if file_hash is not None:
+        if bill := db.find_bill_by_hash(user, file_hash):
+            return db.jsonify_bill(bill)
+        raise HTTPException(status_code=404)
     data = db.get_bills(user)
     return data
 
@@ -144,6 +138,5 @@ async def process_upload_pdf(request: Request, file: UploadFile = File(...)):
     await file.close()
 
     user = await get_user_from_request(request)
-    with io.BytesIO(contents) as fd:
-        bill_id = rewe_process.parse_rewe_ebon(fd, user.id)
+    bill_id = rewe_process.parse_rewe_ebon(contents, user.id)
     return db.jsonify_bill(bill_id=bill_id)

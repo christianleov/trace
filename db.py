@@ -27,6 +27,7 @@ class Bill(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     datetime: Mapped[datetime.datetime]
     value: Mapped[float]
+    file_hash: Mapped[str]
 
 
 class Expense(Base):
@@ -87,6 +88,21 @@ def find_user(user_name: str, password: str = None):
         if password is not None and not bcrypt.verify(password, user.password):
             return None
         return user
+
+
+def find_bill_by_hash(user: User, hash: str) -> Bill | None:
+    with sqlalchemy.orm.Session(engine) as session:
+        results = (
+            session.query(Bill)
+            .filter(Bill.user_id == user.id)
+            .filter(Bill.file_hash == hash)
+            .all()
+        )
+        if not results:
+            return None
+        assert len(results) == 1
+        bill = results[0]
+        return bill
 
 
 def jsonify_bill(bill: Bill = None, bill_id: int = None):

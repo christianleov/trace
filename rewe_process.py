@@ -1,7 +1,8 @@
 import datetime
+import hashlib
+import io
 import math
 import re
-import typing
 
 from pdfminer.high_level import extract_text
 from sqlalchemy.orm import Session
@@ -12,8 +13,9 @@ PRODUCT_PATTERN = r"^(.+?)\s+(\-?\d+,\d+) \w\s*[\*]*$"
 WEIGHT_PATTERN = r"\s+(\d+,\d+) kg x\s+(\d+,\d+) EUR/kg"
 WEIGHT_BUTCHER_PATTERN = r"\s*Handeingabe E-Bon\s*([\d,]+) kg"
 AMOUNT_PATTERN = r"\s+(\d+) Stk x\s+(\d+,\d+)"
-DATE_PATTERN = r"Datum:\s+(\d{2}\.\d{2}\.\d{4})"
+DATE_PATTERN = r"\s*Datum:\s+(\d{2}\.\d{2}\.\d{4})"
 TIME_PATTERN = r"Uhrzeit:\s+(\d{2}:\d{2}:\d{2}) Uhr"
+DATE_TIME_PATTERN = r"\s*\s+(\d{2}\.\d{2}\.\d{4})\s*(\d{2}:\d{2})"
 TOTAL_PATTERN = r"SUMME\s+EUR\s+(\d+,\d+)"
 
 
@@ -45,6 +47,9 @@ def __parse_rewe_ebon_text(text: str):
             date = m.group(1)
         elif m := re.search(TIME_PATTERN, line):
             time = m.group(1)
+        elif m := re.search(DATE_TIME_PATTERN, line):
+            date = m.group(1)
+            time = m.group(2) + ":00"
         elif m := re.search(TOTAL_PATTERN, line):
             total = __atof(m.group(1))
         else:
@@ -57,8 +62,9 @@ def __parse_rewe_ebon_text(text: str):
     return expenses, total
 
 
-def parse_rewe_ebon(ebon: typing.IO, user_id: int) -> int:
-    text = extract_text(ebon)
+def parse_rewe_ebon(ebon: bytes, user_id: int) -> int:
+    with io.BytesIO(ebon) as fd:
+        text = extract_text(fd)
     expenses, total = __parse_rewe_ebon_text(text)
     bill_datetime = expenses[0].datetime
 
@@ -71,10 +77,16 @@ def parse_rewe_ebon(ebon: typing.IO, user_id: int) -> int:
 
     # We refresh ORM objects so that autoincremented values are accessible.
     with Session(db.engine) as session:
-        bill = db.find_bill(bill_datetime)
+        bill = find_bill(bill_datetime)
         if bill is not None:
             return bill.id
-        bill = db.Bill(user_id=user_id, datetime=bill_datetime, value=total)
+        bill = db.Bill(
+            user_id=user_id,
+            datetime=bill_datetime,
+            value=total,
+            file_hash=hashlib.sha256(ebon).hexdigest(),
+        )
+
         session.add(bill)
         session.flush()
         session.refresh(bill)
