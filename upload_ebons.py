@@ -63,12 +63,14 @@ def main():
     assert response.status_code == 200
     hashes = response.json()
 
-    for file_path in EBON_DIR.glob("REWE-eBon*pdf"):
+    stats_skipped = 0
+    ebons = list(EBON_DIR.glob("REWE-eBon*pdf"))
+    for file_path in ebons:
         with open(file_path, "rb") as fd:
             ebon = fd.read()
         file_hash = hashlib.sha256(ebon).hexdigest()
         if file_hash in hashes:
-            print("Skipping ebon")
+            stats_skipped += 1
             continue
         # The eBon does not exist on the server, so we upload it.
         with open(file_path, "rb") as fd:
@@ -81,6 +83,7 @@ def main():
             assert response.status_code == 200
         datetime_str = response.json()["datetime"]
         print(f"Uploaded bill from {datetime_str}")
+    print(f"Skipped {stats_skipped} of {len(ebons)} eBons")
 
 
 if __name__ == "__main__":
