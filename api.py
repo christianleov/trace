@@ -104,8 +104,13 @@ async def get_daily_data(
                 status_code=400, detail="Invalid year or month provided."
             )
     dt = datetime.timedelta(days=1)
-    data = db.retrieve_sum_expenses(user, start, stop, dt)
-    return data
+    time_data = db.retrieve_sum_expenses(user, start, stop, dt)
+    product_data = db.retrieve_product_sum(user, start, stop)
+    json_ = dict(
+        time_data=time_data,
+        product_data=product_data,
+    )
+    return json_
 
 
 @app.get("/api/charts/monthly", dependencies=[Depends(auth.authenticate)])
@@ -120,8 +125,13 @@ async def get_monthly_data(request: Request, year: Optional[int] = None):
         start = datetime.date(year, 1, 1)
         stop = datetime.date(year, 12, 31)
     dt = dateutil.relativedelta.relativedelta(months=1)
-    data = db.retrieve_sum_expenses(user, start, stop, dt)
-    return data
+    time_data = db.retrieve_sum_expenses(user, start, stop, dt)
+    product_data = db.retrieve_product_sum(user, start, stop)
+    json_ = dict(
+        time_data=time_data,
+        product_data=product_data,
+    )
+    return json_
 
 
 @app.get("/api/charts/yearly", dependencies=[Depends(auth.authenticate)])
@@ -131,8 +141,13 @@ async def get_yearly_data(request: Request):
     stop = datetime.date(datetime.datetime.today().year, 1, 1)
     dt = dateutil.relativedelta.relativedelta(years=1)
     start = stop - 4 * dt
-    data = db.retrieve_sum_expenses(user, start, stop, dt)
-    return data
+    time_data = db.retrieve_sum_expenses(user, start, stop, dt)
+    product_data = db.retrieve_product_sum(user, start, stop)
+    json_ = dict(
+        time_data=time_data,
+        product_data=product_data,
+    )
+    return json_
 
 
 @app.post("/api/images", dependencies=[Depends(auth.authenticate)])

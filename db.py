@@ -154,7 +154,28 @@ def retrieve_sum_expenses(
                 .scalar()
             )
             value = 0 if value is None else value
-            data.append(dict(x=x, y=value))
+            data.append([x, value])
             session.close()
         x += dt
     return data
+
+
+def retrieve_product_sum(
+    user: User,
+    start: datetime.date,
+    stop: datetime.date,
+):
+    data = []
+    with sqlalchemy.orm.Session(engine) as session:
+        data = (
+            session.query(
+                Expense.name, sqlalchemy.func.sum(Expense.value).label("total_value")
+            )
+            .filter(Expense.datetime >= start)
+            .filter(Expense.datetime <= stop)
+            .filter(Expense.user_id == user.id)
+            .group_by(Expense.name)
+            .order_by(sqlalchemy.func.sum(Expense.value).desc())
+            .all()
+        )
+    return [list(x) for x in data]
