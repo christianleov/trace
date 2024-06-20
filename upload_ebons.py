@@ -59,27 +59,28 @@ def main():
     if args.reset_db:
         reset_db(args.server)
     headers = login(args.server)
+    response = requests.get(f"{args.server}/api/bills/hashes", headers=headers)
+    assert response.status_code == 200
+    hashes = response.json()
+
     for file_path in EBON_DIR.glob("REWE-eBon*pdf"):
         with open(file_path, "rb") as fd:
             ebon = fd.read()
         file_hash = hashlib.sha256(ebon).hexdigest()
-        response = requests.get(
-            f"{args.server}/api/bills?file_hash={file_hash}",
-            json=USER_DATA,
-            headers=headers,
-        )
-        if response.status_code == 404:
-            # The eBon does not exist on the server, so we upload it.
-            with open(file_path, "rb") as fd:
-                files = {"file": fd}
-                response = requests.post(
-                    f"{args.server}/api/pdfs",
-                    files=files,
-                    headers=headers,
-                )
-                assert response.status_code == 200
-            datetime_str = response.json()["datetime"]
-            print(f"Uploaded bill from {datetime_str}")
+        if file_hash in hashes:
+            print("Skipping ebon")
+            continue
+        # The eBon does not exist on the server, so we upload it.
+        with open(file_path, "rb") as fd:
+            files = {"file": fd}
+            response = requests.post(
+                f"{args.server}/api/pdfs",
+                files=files,
+                headers=headers,
+            )
+            assert response.status_code == 200
+        datetime_str = response.json()["datetime"]
+        print(f"Uploaded bill from {datetime_str}")
 
 
 if __name__ == "__main__":

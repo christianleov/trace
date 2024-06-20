@@ -67,15 +67,23 @@ async def register(user_data: dict = Body(...)):
 
 
 @app.get("/api/bills", dependencies=[Depends(auth.authenticate)])
-async def get_bills(request: Request, file_hash: Optional[str] = None):
+async def get_bills(request: Request, limit: Optional[int] = None):
     user = await get_user_from_request(request)
     assert user is not None
-    if file_hash is not None:
-        if bill := db.find_bill_by_hash(user, file_hash):
-            return db.jsonify_bill(bill)
-        raise HTTPException(status_code=404)
-    data = db.get_bills(user)
+    bills = db.get_bills(user, limit=limit)
+    data = []
+    for bill in bills:
+        data.append(db.jsonify_bill(bill))
     return data
+
+
+@app.get("/api/bills/hashes", dependencies=[Depends(auth.authenticate)])
+async def get_bills_hashes(request: Request):
+    user = await get_user_from_request(request)
+    assert user is not None
+    bills = db.get_bills(user)
+    hashes = [bill.file_hash for bill in bills]
+    return hashes
 
 
 @app.get("/api/charts/daily", dependencies=[Depends(auth.authenticate)])

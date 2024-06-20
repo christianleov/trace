@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import List, Optional
 
 import sqlalchemy
 import sqlalchemy.orm
@@ -120,20 +120,17 @@ def jsonify_bill(bill: Bill = None, bill_id: int = None):
         return dict(**orm_object_to_dict(bill), expenses=expenses)
 
 
-def get_bills(user: User):
+def get_bills(user: User, limit: Optional[int] = None) -> List[Bill]:
     with sqlalchemy.orm.Session(engine) as session:
         query = (
             session.query(Bill)
             .filter(Bill.user_id == user.id)
             .order_by(Bill.datetime.desc())
-            .limit(10)
+            .limit(limit)
         )
         bills = query.all()
 
-    data = []
-    for bill in bills:
-        data.append(jsonify_bill(bill))
-    return data
+    return bills
 
 
 def retrieve_sum_expenses(
