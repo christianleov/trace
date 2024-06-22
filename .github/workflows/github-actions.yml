@@ -7,12 +7,26 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-      - name: Build image
+      - name: Build and test image
         working-directory: ./
+        env:
+          EBONS_PASSPHRASE: ${{ secrets.EBONS_PASSPHRASE }}
         run: |
           echo "Building trace-be image... 🏗"
           echo "JWT_SECRET=$JWT_SECRET" >> .env
+          set -x
           docker build -t trace-be-image .
+
+          echo "Testing trace-be image 🚀"
+          docker stop trace-be-test || true && docker rm trace-be-test || true
+          docker run -d --name trace-be-test trace-be-image
+          docker exec trace-be-test ls tests/ebons.tar.gz.gpg
+          docker exec trace-be-test echo $EBONS_PASSPHRASE
+          docker exec trace-be-test gpg --quiet --batch --yes --decrypt --passphrase="$EBONS_PASSPHRASE" --output data/ebons.tar.gz tests/ebons.tar.gz.gpg
+          docker exec trace-be-test mkdir data/ebons
+          docker exec trace-be-test tar xf data/ebons.tar.gz --directory=data/ebons/
+          docker exec trace-be-test python -m pytest -v
+          docker stop trace-be-test || true && docker rm trace-be-test || true
       - name: Deploy image
         working-directory: ./
         run: |
