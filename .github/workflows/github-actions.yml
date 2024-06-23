@@ -11,6 +11,7 @@ jobs:
         working-directory: ./
         env:
           EBONS_PASSPHRASE: ${{ secrets.EBONS_PASSPHRASE }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           echo "Building trace-be image... 🏗"
           echo "JWT_SECRET=$JWT_SECRET" >> .env
